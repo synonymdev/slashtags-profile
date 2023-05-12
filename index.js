@@ -1,92 +1,136 @@
-const Hyperdrive = require('hyperdrive')
 const b4a = require('b4a')
+const SlashURL = require('@synonymdev/slashtags-url')
+
+const PROFILE_PATH = '/public/profile.json'
 
 class SlashtagsProfile {
   /**
-   * @param {object} opts
-   * @param {object} opts.corestore - Corestore instance, namespaced to generate a unique Hyperdrive
-   * @param {Hyperswarm} [opts.swarm]
-   * @param {Uint8Array} [opts.key]
-   * @param {Uint8Array} [opts.keyPair]
+   * @param {CoreData} coreData
    */
-  constructor (opts) {
-    this._swarm = opts.swarm
-    this._corestore = opts.corestore
-
-    this._swarm?.on('connection', (socket) => {
-      this._corestore.replicate(socket)
-    })
-
-    this._drive = new Hyperdrive(this._corestore, opts.key)
-
-    this._opened = this._open()
-
-    if (opts.key) {
-      this._drive.ready().then(() => {
-        // If we joining as readers, we need to tell hypercore internals
-        // ot await finding peers before resolving this._drive.update() in read().
-        const done = this._drive.findingPeers()
-        this._swarm?.flush().then(done, done)
-      })
-    }
-  }
-
-  // Announce hyperdrive on the swarm
-  async _open () {
-    await this._drive.ready()
-    const discovery = this._swarm?.join(this._drive.discoveryKey)
-
-    if (this._drive.core.writable) {
-      return discovery.flushed()
-    }
-  }
-
-  async ready () {
-    return this._opened
-  }
-
-  get key () {
-    return this._drive.key
+  constructor (coreData) {
+    this.coreData = coreData
   }
 
   /**
-   * @param {Profile} data
+   * Absolute for the profile path
+   *
+   * @returns {string}
    */
-  create (data) {
-    return this.update(data)
+  static get path () {
+    return PROFILE_PATH
   }
 
   /**
-   * @param {Profile} data
+   * await for interal coreData instance to be ready
+   *
+   * @returns {Promise<void>}
    */
-  update (data) {
-    return this._drive.put('/profile.json', b4a.from(JSON.stringify(data)))
+  ready () {
+    return this.coreData.ready()
   }
 
   /**
-   * @returns {Promise<Profile>}
+   * Create a new Profile file.
+   *
+   * @param {Profile} profile
+   * @param {Parameters<CoreData['create']>[2]} opts
+   *
+   * @returns {Promise<void>}
+   */
+  create (profile, opts = {}) {
+    return this.coreData.create(PROFILE_PATH, encode(profile), opts)
+  }
+
+  /**
+   * Update Profile file.
+   *
+   * @param {Profile} profile
+   * @param {Parameters<CoreData['update']>[2]} opts
+   *
+   * @returns {Promise<void>}
+   */
+  update (profile, opts = {}) {
+    return this.coreData.update(PROFILE_PATH, encode(profile), opts)
+  }
+
+  /**
+   * Delete Profile file.
+   *
+   * @param {Parameters<CoreData['delete']>[1]} opts
+   *
+   * @returns {Promise<void>}
+   */
+  delete (opts = {}) {
+    return this.coreData.delete(PROFILE_PATH, opts)
+  }
+
+  /**
+   * Return local Profile file
+   *
+   * @returns {Promise<Profile | null>}
    */
   async read () {
-    if (!this._drive.core.writable) await this.ready()
+    const buf = await this.coreData.read(PROFILE_PATH)
 
-    return this._drive.get('/profile.json')
-      .then(buf => buf && b4a.toString(buf))
-      .then(JSON.parse)
+    return buf && decode(buf)
   }
 
-  delete () {
-    return this._drive.del('/profile.json')
+  /**
+   * Return local Profile file
+   *
+   * @param {string} url - remote slashtag url `slash:<key>/`
+   * @param {Parameters<CoreData['readRemote']>[1]} opts
+   *
+   * @returns {Promise<Profile | null>}
+   */
+  async readRemote (url, opts = {}) {
+    const parsed = SlashURL.parse(url)
+    const target = 'slash:' + parsed.id + PROFILE_PATH
+    const buf = await this.coreData.readRemote(target, opts)
+
+    return buf && decode(buf)
   }
 
+  /**
+   * Close core data instance
+   *
+   * @returns {Promise<void>}
+   */
   close () {
-    return this._drive.close()
+    return this.coreData.close()
   }
 }
 
 module.exports = SlashtagsProfile
 
 /**
- * @typedef {import('hyperswarm')} Hyperswarm
+ * Encode profile json into Uint8Array.
+ *
+ * @param {Profile} profile
+ *
+ * @returns {Uint8Array}
+ */
+function encode (profile) {
+  return b4a.from(JSON.stringify(profile))
+}
+
+/**
+ * Try to decode Uint8Array into profile json.
+ *
+ * @param{Uint8Array} buf
+ *
+ * @returns {Profile | null}
+ */
+function decode (buf) {
+  try {
+    return JSON.parse(b4a.toString(buf))
+  } catch {
+    return null
+  }
+}
+
+/**
+ * @typedef {import('@synonymdev/slashtags-core-data')} CoreData
  * @typedef {{url: string, title: string}} Link
  * @typedef {{
  *  name?: string;
