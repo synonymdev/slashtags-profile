@@ -25,6 +25,7 @@
   "dependencies": {
     "@synonymdev/slashtags-core-data": "^1.0.0-alpha.3",
     "@synonymdev/slashtags-url": "^1.0.0-alpha.3",
+    "ajv": "^8.12.0",
     "b4a": "^1.6.3"
   }
 }

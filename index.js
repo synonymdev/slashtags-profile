@@ -1,15 +1,61 @@
 const b4a = require('b4a')
 const SlashURL = require('@synonymdev/slashtags-url')
 const CoreData = require('@synonymdev/slashtags-core-data')
+const { default: Ajv } = require('ajv')
 
 const PROFILE_PATH = '/public/profile.json'
+const PROFILE_SCHEMA = {
+  $schema: 'http://json-schema.org/draft-07/schema#',
+  title: 'Profile',
+  type: 'object',
+  properties: {
+    name: {
+      type: 'string'
+    },
+    bio: {
+      type: 'string'
+    },
+    image: {
+      type: 'string'
+    },
+    links: {
+      type: 'array',
+      items: {
+        $ref: '#/definitions/Link'
+      }
+    }
+  },
+  definitions: {
+    Link: {
+      type: 'object',
+      properties: {
+        url: {
+          type: 'string'
+        },
+        title: {
+          type: 'string'
+        }
+      },
+      required: ['title', 'url']
+    }
+  }
+}
+
+const ajv = new Ajv({ allErrors: true })
+const _validate = ajv.compile(PROFILE_SCHEMA)
 
 class SlashtagsProfile {
   /**
    * @param {CoreData} [coreData]
    */
   constructor (coreData) {
-    this.coreData = coreData || new CoreData()
+    if (coreData instanceof CoreData) {
+      this.coreData = coreData
+    } else {
+      // For testing purposes, we allow passing options to the CoreData constructor
+      const opts = coreData
+      this.coreData = new CoreData(opts)
+    }
   }
 
   /**
@@ -46,6 +92,7 @@ class SlashtagsProfile {
    * @returns {Promise<void>}
    */
   create (profile, opts = {}) {
+    validate(profile)
     return this.coreData.create(PROFILE_PATH, encode(profile), opts)
   }
 
@@ -58,6 +105,7 @@ class SlashtagsProfile {
    * @returns {Promise<void>}
    */
   update (profile, opts = {}) {
+    validate(profile)
     return this.coreData.update(PROFILE_PATH, encode(profile), opts)
   }
 
@@ -134,6 +182,23 @@ function decode (buf) {
     return JSON.parse(b4a.toString(buf))
   } catch {
     return null
+  }
+}
+
+/**
+ * Validate profile json.
+ *
+ * @param {Profile} profile
+ */
+function validate (profile) {
+  const valid = _validate(profile)
+  if (!valid) {
+    const message = _validate.errors.map((error) => {
+      const name = error.instancePath === '' ? 'profile' : `Field '${error.instancePath.slice(1)}'`
+      return ` - ${name} ${error.message}`
+    })
+      .join('\n')
+    throw new Error('Invalid profile:\n' + message)
   }
 }
 
