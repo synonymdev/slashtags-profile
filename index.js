@@ -1,14 +1,22 @@
 const b4a = require('b4a')
 const SlashURL = require('@synonymdev/slashtags-url')
+const CoreData = require('@synonymdev/slashtags-core-data')
 
 const PROFILE_PATH = '/public/profile.json'
 
 class SlashtagsProfile {
   /**
-   * @param {CoreData} coreData
+   * @param {CoreData} [coreData]
    */
   constructor (coreData) {
-    this.coreData = coreData
+    this.coreData = coreData || new CoreData()
+  }
+
+  /**
+   * Url of the author slashtag of this profile `slash:<public key>`
+   */
+  get url () {
+    return this.coreData.url
   }
 
   /**
@@ -130,7 +138,6 @@ function decode (buf) {
 }
 
 /**
- * @typedef {import('@synonymdev/slashtags-core-data')} CoreData
  * @typedef {{url: string, title: string}} Link
  * @typedef {{
  *  name?: string;

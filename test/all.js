@@ -4,6 +4,14 @@ const SlashtagsCoreData = require('@synonymdev/slashtags-core-data')
 
 const SlashtagsProfile = require('../index.js')
 
+test('construct with now core-data module', async (t) => {
+  const profile = new SlashtagsProfile()
+
+  t.ok(profile.coreData instanceof SlashtagsCoreData)
+
+  profile.close()
+})
+
 test('Create, Update, Read, Delete', async (t) => {
   const testnet = await createTestnet(3, t.teardown)
 
@@ -26,7 +34,7 @@ test('Create, Update, Read, Delete', async (t) => {
   const readerCoreData = new SlashtagsCoreData(testnet)
   const reader = new SlashtagsProfile(readerCoreData)
 
-  const resolved = await reader.readRemote(writer.coreData.url)
+  const resolved = await reader.readRemote(writer.url)
 
   t.alike(resolved, updated, 'read profile data from swarm successfully')
 
@@ -35,7 +43,7 @@ test('Create, Update, Read, Delete', async (t) => {
   const afterDelete = await writer.read()
   t.is(afterDelete, null, 'deleted profile locally')
 
-  const afterDeleteReader = await reader.readRemote(writer.coreData.url)
+  const afterDeleteReader = await reader.readRemote(writer.url)
   t.is(afterDeleteReader, null, 'deleted profile at reader')
 
   await writer.close()
@@ -56,7 +64,7 @@ test('Read empty profile', async (t) => {
   const readerCoreData = new SlashtagsCoreData(testnet)
   const reader = new SlashtagsProfile(readerCoreData)
 
-  const resolved = await reader.readRemote(writer.coreData.url)
+  const resolved = await reader.readRemote(writer.url)
   t.alike(resolved, null)
 
   await writer.close()

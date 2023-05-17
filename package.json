@@ -18,12 +18,12 @@
   ],
   "devDependencies": {
     "@hyperswarm/testnet": "^3.1.1",
-    "@synonymdev/slashtags-core-data": "https://github.com/synonymdev/slashtags-core-data/tree/seeders-status",
     "brittle": "^3.2.1",
     "standard": "^17.0.0",
     "typescript": "^5.0.4"
   },
   "dependencies": {
+    "@synonymdev/slashtags-core-data": "^1.0.0-alpha.3",
     "@synonymdev/slashtags-url": "^1.0.0-alpha.3",
     "b4a": "^1.6.3"
   }
