@@ -14,19 +14,9 @@ Initialize
 
 ```js
 const SlashtagsProfile = require('@synonymdev/slashtags-profile')
-const Hyperswarm = require('hyperswarm')
-const Corestore = require('corestore')
 
-const swarm = new Hyperswarm()
-const corestore = new Corestore(RAM)
-
-const writer = new SlashtagsProfile({
-  swarm,
-  corestore: corestoreA.namespace('foo'),
-})
-
+const writer = new SlashtagsProfile()
 await writer.ready()
-console.log(writer.key)
 
 const profile = { name: 'foo' }
 
@@ -37,30 +27,20 @@ Resolve profile as a reader
 
 ```js
 const SlashtagsProfile = require('@synonymdev/slashtags-profile')
-const Hyperswarm = require('hyperswarm')
-const Corestore = require('corestore')
 
-const reader = new SlashtagsProfile({
-  swarm,
-  corestore: corestoreB,
-  key, // Key from the writer
-})
+const reader = new SlashtagsProfile()
 
-const resolved = await reader.read()
+const resolved = await reader.readRemote(writer.url)
 // {name: 'foo'}
 ```
 
 ## API
 
-#### `new SlashtagsProfile(opts)`
+#### `new SlashtagsProfile([coreData])`
 
 Create a new SlashtagsProfile instance.
 
-`options` is an object that includes:
-
-- `swarm` [Hyperswarm](https://github.com/holepunchto/hyperswarm) instance
-- `corestore` [Corestore](https://github.com/holepunchto/corestore) instance, it should be uniquely [namespaced](https://github.com/holepunchto/corestore#const-store--storenamespacename), to avoid overwriting other profiles.
-- `key` Optional key to create a read only instance
+- `coreData` Optional [slashtags-core-data](https://www.npmjs.com/package/@synonymdev/slashtags-core-data) module, if not passed, it will create one with a random KeyPair.
 
 #### `await profile.ready()`
 
