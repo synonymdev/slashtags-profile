@@ -46,7 +46,7 @@ const _validate = ajv.compile(PROFILE_SCHEMA)
 
 class SlashtagsProfile {
   /**
-   * @param {CoreData} [coreData]
+   * @param {CoreData | {bootstrap?: {host: string, port:number}[]}} [coreData]
    */
   constructor (coreData) {
     if (coreData instanceof CoreData) {
@@ -145,6 +145,23 @@ class SlashtagsProfile {
     const buf = await this.coreData.readRemote(target, opts)
 
     return buf && decode(buf)
+  }
+
+  /**
+   * Subscribe to updates to a local or remote profile file.
+   *
+   * @param {string} url
+   * @param {(curr: Profile, prev: Profile) => any} onupdate
+   *
+   * @returns {Promise<() => void>}
+   */
+  subscribe (url, onupdate) {
+    const parsed = SlashURL.parse(url)
+    const target = 'slash:' + parsed.id + PROFILE_PATH
+
+    return this.coreData.subscribe(target, (curr, prev) => {
+      onupdate(curr && decode(curr), prev && decode(prev))
+    })
   }
 
   /**
