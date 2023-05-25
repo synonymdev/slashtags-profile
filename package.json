@@ -1,6 +1,6 @@
 {
   "name": "@synonymdev/slashtags-profile",
-  "version": "1.0.0-alpha.0",
+  "version": "1.0.0-alpha.1",
   "main": "index.js",
   "types": "types/index.d.ts",
   "scripts": {
@@ -23,7 +23,7 @@
     "typescript": "^5.0.4"
   },
   "dependencies": {
-    "@synonymdev/slashtags-core-data": "^1.0.0-alpha.3",
+    "@synonymdev/slashtags-core-data": "^1.0.0-alpha.4",
     "@synonymdev/slashtags-url": "^1.0.0-alpha.3",
     "ajv": "^8.12.0",
     "b4a": "^1.6.3"
