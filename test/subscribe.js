@@ -3,7 +3,7 @@ const createTestnet = require('@hyperswarm/testnet')
 
 const SlashtagsProfile = require('../index.js')
 
-test('watch file updated', async (t) => {
+test('watch profile updated', async (t) => {
   const testnet = await createTestnet(3, t.teardown)
 
   const writer = new SlashtagsProfile(testnet)
@@ -12,17 +12,27 @@ test('watch file updated', async (t) => {
   await writer.create(created)
 
   const reader = new SlashtagsProfile(testnet)
+  await reader.ready()
 
   const tw = t.test('watcher')
   tw.plan(2)
 
-  const cleanup = await reader.subscribe(
+  let calls = 0
+
+  const cleanup = reader.subscribe(
     writer.url,
-    (value, prev) => {
-      tw.alike(value, updated)
-      tw.alike(prev, created)
+    (profile) => {
+      if (calls++ === 0) {
+        // First call
+        tw.alike(profile, created)
+      } else {
+        // Second call
+        tw.alike(profile, updated)
+      }
     }
   )
+
+  await sleep(100)
 
   const updated = { name: 'bar' }
   await writer.update(updated)
@@ -36,7 +46,7 @@ test('watch file updated', async (t) => {
   reader.close()
 })
 
-test('watch file deleted', async (t) => {
+test('watch profile deleted', async (t) => {
   const testnet = await createTestnet(3, t.teardown)
 
   const writer = new SlashtagsProfile(testnet)
@@ -45,17 +55,25 @@ test('watch file deleted', async (t) => {
   await writer.create(created)
 
   const reader = new SlashtagsProfile(testnet)
+  await reader.ready()
 
   const tw = t.test('watcher')
   tw.plan(2)
 
-  const cleanup = await reader.subscribe(
+  let count = 0
+
+  const cleanup = reader.subscribe(
     writer.url,
-    (value, prev) => {
-      tw.alike(value, null)
-      tw.alike(prev, created)
+    (profile) => {
+      if (count++ === 0) {
+        tw.alike(profile, created)
+      } else {
+        tw.alike(profile, null)
+      }
     }
   )
+
+  await sleep(100)
 
   await writer.delete()
 
@@ -68,7 +86,7 @@ test('watch file deleted', async (t) => {
   reader.close()
 })
 
-test('watch local file updated', async (t) => {
+test('watch local profile updated', async (t) => {
   const testnet = await createTestnet(3, t.teardown)
 
   const writer = new SlashtagsProfile(testnet)
@@ -77,13 +95,12 @@ test('watch local file updated', async (t) => {
   await writer.create(created)
 
   const tw = t.test('watcher')
-  tw.plan(2)
+  tw.plan(1)
 
-  const cleanup = await writer.subscribe(
+  const cleanup = writer.subscribe(
     writer.url,
-    (value, prev) => {
-      tw.alike(value, updated)
-      tw.alike(prev, created)
+    (profile) => {
+      tw.alike(profile, updated)
     }
   )
 
@@ -97,3 +114,8 @@ test('watch local file updated', async (t) => {
 
   writer.close()
 })
+
+/** @param {number} ms */
+function sleep (ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}

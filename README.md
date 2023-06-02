@@ -68,4 +68,4 @@ Read the profile from local storage. It will internally await for finding peers 
 
 #### `await profile.subscribe(url, onupdate)`
 
-Watch updates to a local or a remote file, and call `onupdate(curr, prev)` function with current and previous profiles.
+Watch updates to a local or a remote file, and call `onupdate(curr)` function with current profile.

@@ -151,16 +151,16 @@ class SlashtagsProfile {
    * Subscribe to updates to a local or remote profile file.
    *
    * @param {string} url
-   * @param {(curr: Profile, prev: Profile) => any} onupdate
+   * @param {(curr: Profile) => any} onupdate
    *
-   * @returns {Promise<() => void>}
+   * @returns {() => void}
    */
   subscribe (url, onupdate) {
     const parsed = SlashURL.parse(url)
     const target = 'slash:' + parsed.id + PROFILE_PATH
 
-    return this.coreData.subscribe(target, (curr, prev) => {
-      onupdate(curr && decode(curr), prev && decode(prev))
+    return this.coreData.subscribe(target, (curr) => {
+      onupdate(curr && decode(curr))
     })
   }
 
