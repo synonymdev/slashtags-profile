@@ -65,3 +65,7 @@ Deletes the value from the underlying hyperdrive.
 ####  `await profile.read()`
 
 Read the profile from local storage. It will internally await for finding peers if it has any. Otherwise, it will eagerly get update from connected peers. 
+
+#### `await profile.subscribe(url, onupdate)`
+
+Watch updates to a local or a remote file, and call `onupdate(curr)` function with current profile.
