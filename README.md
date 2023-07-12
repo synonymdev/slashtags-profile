@@ -1,6 +1,6 @@
 # slashtags-profile
 
-Slashtags Profile helper module.
+A helper module for creating Slashtags profiles.
 
 ## Install
 
@@ -23,7 +23,7 @@ const profile = { name: 'foo' }
 await writer.create(profile)
 ```
 
-Resolve profile as a reader 
+Resolve the profile as a reader 
 
 ```js
 const SlashtagsProfile = require('@synonymdev/slashtags-profile')
@@ -40,15 +40,15 @@ const resolved = await reader.readRemote(writer.url)
 
 Create a new SlashtagsProfile instance.
 
-- `coreData` Optional [slashtags-core-data](https://www.npmjs.com/package/@synonymdev/slashtags-core-data) module, if not passed, it will create one with a random KeyPair.
+- `coreData` Optional [slashtags-core-data](https://www.npmjs.com/package/@synonymdev/slashtags-core-data) module; if not passed, one will be created with a random KeyPair.
 
 #### `await profile.ready()`
 
-Await for the underlying resources to be ready, if the profile is writable, it will await for the announcement on the swarm to be done.
+Await for the underlying resources to be ready; if the profile is writable, code execution will await for the announcement on the swarm to be completed.
 
 #### `await profile.close()`
 
-Closes Hypercore sessions created for this instance.
+Closes the writing sessions created for this instance.
 
 #### `await profile.create(data)`
 
@@ -56,11 +56,11 @@ Same as `await profile.update(data)`
 
 #### `await profile.update(data)`
 
-Puts a new profile value. `data` param should be an object following its type definition.
+Puts a new profile value. The `data` parameter should be an object following its type definition.
 
 #### `await profile.delete()`
 
-Deletes the value from the underlying hyperdrive.
+Delete the profile data from the underlying hyperdrive.
 
 ####  `await profile.read()`
 
@@ -68,4 +68,4 @@ Read the profile from local storage. It will internally await for finding peers 
 
 #### `await profile.subscribe(url, onupdate)`
 
-Watch updates to a local or a remote file, and call `onupdate(curr)` function with current profile.
+Watch updates to a local or a remote profile, and call the `onupdate(curr)` function with current profile.
