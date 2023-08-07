@@ -1,104 +1,110 @@
 const test = require('brittle')
-const createTestnet = require('@hyperswarm/testnet')
-const SlashtagsCoreData = require('@synonymdev/slashtags-core-data')
+/** @type {typeof import('@synonymdev/web-relay/types/lib/client/index')} */
+// @ts-ignore
+const Client = require('@synonymdev/web-relay/client')
+const Relay = require('@synonymdev/web-relay')
+const os = require('os')
 
 const SlashtagsProfile = require('../index.js')
 
-test('construct with now core-data module', async (t) => {
-  const profile = new SlashtagsProfile()
-
-  t.ok(profile.coreData instanceof SlashtagsCoreData)
-
-  profile.close()
-})
-
 test('Create, Update, Read, Delete', async (t) => {
-  const testnet = await createTestnet(3, t.teardown)
+  const relay = new Relay(tmpdir())
+  const address = await relay.listen()
 
-  const writerCoreData = new SlashtagsCoreData(testnet)
-  const writer = new SlashtagsProfile(writerCoreData)
-  await writer.ready()
+  const writerClient = new Client({ storage: tmpdir(), relay: address })
+  const writer = new SlashtagsProfile(writerClient)
 
   const created = { name: 'foo' }
 
-  await writer.create(created)
+  await writer.put(created)
 
-  const saved = await writer.read()
+  const saved = await writer.get()
 
   t.alike(saved, created, 'created profile data locally successfully')
 
   const updated = { name: 'bar' }
 
-  await writer.update(updated)
+  await writer.put(updated)
 
-  const readerCoreData = new SlashtagsCoreData(testnet)
-  const reader = new SlashtagsProfile(readerCoreData)
+  const url = await writer.createURL()
 
-  const resolved = await reader.readRemote(writer.url)
+  const readerClient = new Client({ storage: tmpdir() })
+  const reader = new SlashtagsProfile(readerClient)
+
+  const resolved = await reader.get(url)
 
   t.alike(resolved, updated, 'read profile data from swarm successfully')
 
-  await writer.delete()
+  await writer.del()
 
-  const afterDelete = await writer.read()
+  const afterDelete = await writer.get()
   t.is(afterDelete, null, 'deleted profile locally')
 
-  const afterDeleteReader = await reader.readRemote(writer.url)
+  // First read returns from local storage, while fetching from relay.
+  reader.get(url)
+  await sleep(100)
+
+  const afterDeleteReader = await reader.get(url)
   t.is(afterDeleteReader, null, 'deleted profile at reader')
 
-  await writer.close()
-  await reader.close()
+  writer.close()
+  reader.close()
+  relay.close()
 })
 
 test('Read empty profile', async (t) => {
-  const testnet = await createTestnet(3, t.teardown)
+  const relay = new Relay(tmpdir())
+  const address = await relay.listen()
 
-  const writerCoreData = new SlashtagsCoreData(testnet)
-  const writer = new SlashtagsProfile(writerCoreData)
-  await writer.ready()
+  const writerClient = new Client({ storage: tmpdir(), relay: address })
+  const writer = new SlashtagsProfile(writerClient)
 
-  const saved = await writer.read()
+  const saved = await writer.get()
 
   t.alike(saved, null)
 
-  const readerCoreData = new SlashtagsCoreData(testnet)
-  const reader = new SlashtagsProfile(readerCoreData)
+  const url = await writer.createURL()
 
-  const resolved = await reader.readRemote(writer.url)
+  const readerClient = new Client({ storage: tmpdir() })
+  const reader = new SlashtagsProfile(readerClient)
+
+  const resolved = await reader.get(url)
   t.alike(resolved, null)
 
-  await writer.close()
-  await reader.close()
+  writer.close()
+  reader.close()
+  relay.close()
 })
 
 test('Read invalid profile', async (t) => {
-  const testnet = await createTestnet(3, t.teardown)
+  const relay = new Relay(tmpdir())
+  const address = await relay.listen()
 
-  const writerCoreData = new SlashtagsCoreData(testnet)
-  await writerCoreData.ready()
+  const writerClient = new Client({ storage: tmpdir(), relay: address })
+  const writer = new SlashtagsProfile(writerClient)
 
-  await writerCoreData.create(SlashtagsProfile.path, new Uint8Array([1, 2, 3]))
+  await writerClient.put(SlashtagsProfile.path, new Uint8Array([1, 2, 3]))
 
-  const readerCoreData = new SlashtagsCoreData(testnet)
-  const reader = new SlashtagsProfile(readerCoreData)
+  const url = await writer.createURL()
 
-  const resolved = await reader.readRemote(writerCoreData.url)
+  const readerClient = new Client({ storage: tmpdir() })
+  const reader = new SlashtagsProfile(readerClient)
+
+  const resolved = await reader.get(url)
   t.alike(resolved, null)
 
-  await writerCoreData.close()
-  await reader.close()
+  writer.close()
+  reader.close()
+  relay.close()
 })
 
 test('validate profile on create', async (t) => {
-  const testnet = await createTestnet(3, t.teardown)
-
-  // @ts-ignore
-  const writer = new SlashtagsProfile(testnet)
-  await writer.ready()
+  const writerClient = new Client({ storage: tmpdir() })
+  const writer = new SlashtagsProfile(writerClient)
 
   try {
     // @ts-ignore
-    writer.create([])
+    writer.put([])
   } catch (error) {
     t.is(error.message,
       `Invalid profile:
@@ -107,7 +113,7 @@ test('validate profile on create', async (t) => {
 
   try {
     // @ts-ignore
-    writer.create({ name: 324, bio: 234, images: 123, links: { foo: 'bar' } })
+    writer.put({ name: 324, bio: 234, images: 123, links: { foo: 'bar' } })
   } catch (error) {
     t.is(error.message,
       `Invalid profile:
@@ -118,7 +124,7 @@ test('validate profile on create', async (t) => {
 
   try {
     // @ts-ignore
-    writer.create({ name: 324, bio: 234, images: 123, links: [{}, { title: 123, url: 234 }] })
+    writer.put({ name: 324, bio: 234, images: 123, links: [{}, { title: 123, url: 234 }] })
   } catch (error) {
     t.is(error.message,
       `Invalid profile:
@@ -134,17 +140,14 @@ test('validate profile on create', async (t) => {
 })
 
 test('validate profile on update', async (t) => {
-  const testnet = await createTestnet(3, t.teardown)
+  const writerClient = new Client({ storage: tmpdir() })
+  const writer = new SlashtagsProfile(writerClient)
 
-  // @ts-ignore
-  const writer = new SlashtagsProfile(testnet)
-  await writer.ready()
-
-  await writer.create({})
+  await writer.put({})
 
   try {
     // @ts-ignore
-    writer.update([])
+    writer.put([])
   } catch (error) {
     t.is(error.message,
       `Invalid profile:
@@ -153,7 +156,7 @@ test('validate profile on update', async (t) => {
 
   try {
     // @ts-ignore
-    writer.update({ name: 324, bio: 234, images: 123, links: { foo: 'bar' } })
+    writer.put({ name: 324, bio: 234, images: 123, links: { foo: 'bar' } })
   } catch (error) {
     t.is(error.message,
       `Invalid profile:
@@ -164,7 +167,7 @@ test('validate profile on update', async (t) => {
 
   try {
     // @ts-ignore
-    writer.update({ name: 324, bio: 234, images: 123, links: [{}, { title: 123, url: 234 }] })
+    writer.put({ name: 324, bio: 234, images: 123, links: [{}, { title: 123, url: 234 }] })
   } catch (error) {
     t.is(error.message,
       `Invalid profile:
@@ -178,3 +181,129 @@ test('validate profile on update', async (t) => {
 
   writer.close()
 })
+
+test('watch profile updated', async (t) => {
+  const relay = new Relay(tmpdir())
+  const address = await relay.listen()
+
+  const writerClient = new Client({ storage: tmpdir(), relay: address })
+  const writer = new SlashtagsProfile(writerClient)
+
+  const created = { name: 'foo' }
+  await writer.put(created)
+
+  const url = await writer.createURL()
+
+  const readerClient = new Client({ storage: tmpdir() })
+  const reader = new SlashtagsProfile(readerClient)
+
+  const tw = t.test('watcher')
+  tw.plan(2)
+
+  let calls = 0
+
+  const cleanup = reader.subscribe(
+    url,
+    (profile) => {
+      if (calls++ === 0) {
+        // First call
+        tw.alike(profile, created)
+      } else {
+        // Second call
+        tw.alike(profile, updated)
+      }
+    }
+  )
+
+  await sleep(100)
+
+  const updated = { name: 'bar' }
+  await writer.put(updated)
+
+  await tw
+
+  cleanup()
+
+  relay.close()
+})
+
+test('watch profile deleted', async (t) => {
+  const relay = new Relay(tmpdir())
+  const address = await relay.listen()
+
+  const writerClient = new Client({ storage: tmpdir(), relay: address })
+  const writer = new SlashtagsProfile(writerClient)
+
+  const created = { name: 'foo' }
+  await writer.put(created)
+
+  const url = await writer.createURL()
+
+  const readerClient = new Client({ storage: tmpdir() })
+  const reader = new SlashtagsProfile(readerClient)
+
+  const tw = t.test('watcher')
+  tw.plan(2)
+
+  let count = 0
+
+  const cleanup = reader.subscribe(
+    url,
+    (profile) => {
+      if (count++ === 0) {
+        tw.alike(profile, created)
+      } else {
+        tw.alike(profile, null)
+      }
+    }
+  )
+
+  await sleep(100)
+
+  await writer.del()
+
+  await tw
+
+  cleanup()
+
+  relay.close()
+})
+
+test.skip('watch local profile updated', async (t) => {
+  const writerClient = new Client({ storage: tmpdir() })
+  const writer = new SlashtagsProfile(writerClient)
+
+  const created = { name: 'foo' }
+  await writer.put(created)
+
+  const url = await writer.createURL()
+
+  const tw = t.test('watcher')
+  tw.plan(1)
+
+  const cleanup = writer.subscribe(
+    url,
+    (profile) => {
+      tw.alike(profile, updated)
+    }
+  )
+
+  const updated = { name: 'bar' }
+  await writer.put(updated)
+
+  await tw
+
+  cleanup()
+
+  writer.close()
+})
+
+/** returns {string} */
+function tmpdir () {
+  return os.tmpdir() + '/' + Math.random().toString(16).slice(2)
+}
+
+/** @param {number} ms */
+function sleep (ms) {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}

@@ -1,9 +1,7 @@
 const b4a = require('b4a')
-const SlashURL = require('@synonymdev/slashtags-url')
-const CoreData = require('@synonymdev/slashtags-core-data')
 const { default: Ajv } = require('ajv')
 
-const PROFILE_PATH = '/public/profile.json'
+const PROFILE_PATH = '/profile.json'
 const PROFILE_SCHEMA = {
   $schema: 'http://json-schema.org/draft-07/schema#',
   title: 'Profile',
@@ -46,23 +44,17 @@ const _validate = ajv.compile(PROFILE_SCHEMA)
 
 class SlashtagsProfile {
   /**
-   * @param {CoreData | {bootstrap?: {host: string, port:number}[]}} [coreData]
+   * @param {WebRelayClient} client
    */
-  constructor (coreData) {
-    if (coreData instanceof CoreData) {
-      this.coreData = coreData
-    } else {
-      // For testing purposes, we allow passing options to the CoreData constructor
-      const opts = coreData
-      this.coreData = new CoreData(opts)
-    }
+  constructor (client) {
+    this._client = client
   }
 
   /**
-   * Url of the author slashtag of this profile `slash:<public key>`
+   * Create a url of the profile file
    */
-  get url () {
-    return this.coreData.url
+  async createURL () {
+    return this._client.createURL(PROFILE_PATH)
   }
 
   /**
@@ -75,74 +67,37 @@ class SlashtagsProfile {
   }
 
   /**
-   * await for interal coreData instance to be ready
-   *
-   * @returns {Promise<void>}
-   */
-  ready () {
-    return this.coreData.ready()
-  }
-
-  /**
-   * Create a new Profile file.
+   * Create or update a Profile file.
    *
    * @param {Profile} profile
-   * @param {Parameters<CoreData['create']>[2]} opts
    *
    * @returns {Promise<void>}
    */
-  create (profile, opts = {}) {
+  put (profile) {
     validate(profile)
-    return this.coreData.create(PROFILE_PATH, encode(profile), opts)
-  }
-
-  /**
-   * Update Profile file.
-   *
-   * @param {Profile} profile
-   * @param {Parameters<CoreData['update']>[2]} opts
-   *
-   * @returns {Promise<void>}
-   */
-  update (profile, opts = {}) {
-    validate(profile)
-    return this.coreData.update(PROFILE_PATH, encode(profile), opts)
+    return this._client.put(PROFILE_PATH, encode(profile))
   }
 
   /**
    * Delete Profile file.
    *
-   * @param {Parameters<CoreData['delete']>[1]} opts
-   *
    * @returns {Promise<void>}
    */
-  delete (opts = {}) {
-    return this.coreData.delete(PROFILE_PATH, opts)
+  del () {
+    return this._client.del(PROFILE_PATH)
   }
 
   /**
    * Return local Profile file
    *
-   * @returns {Promise<Profile | null>}
-   */
-  async read () {
-    const buf = await this.coreData.read(PROFILE_PATH)
-
-    return buf && decode(buf)
-  }
-
-  /**
-   * Return local Profile file
-   *
-   * @param {string} url - remote slashtag url `slash:<key>/`
-   * @param {Parameters<CoreData['readRemote']>[1]} opts
+   * @param {string} [url]
    *
    * @returns {Promise<Profile | null>}
    */
-  async readRemote (url, opts = {}) {
-    const parsed = SlashURL.parse(url)
-    const target = 'slash:' + parsed.id + PROFILE_PATH
-    const buf = await this.coreData.readRemote(target, opts)
+  async get (url) {
+    const buf = url
+      ? await this._client.get(url)
+      : await this._client.get(PROFILE_PATH)
 
     return buf && decode(buf)
   }
@@ -156,11 +111,8 @@ class SlashtagsProfile {
    * @returns {() => void}
    */
   subscribe (url, onupdate) {
-    const parsed = SlashURL.parse(url)
-    const target = 'slash:' + parsed.id + PROFILE_PATH
-
-    return this.coreData.subscribe(target, (curr) => {
-      onupdate(curr && decode(curr))
+    return this._client.subscribe(url, (buf) => {
+      onupdate(buf && decode(buf))
     })
   }
 
@@ -170,7 +122,7 @@ class SlashtagsProfile {
    * @returns {Promise<void>}
    */
   close () {
-    return this.coreData.close()
+    return this._client.close()
   }
 }
 
@@ -227,4 +179,6 @@ function validate (profile) {
  *  image?: string;
  *  links?: Array<Link>;
  * }} Profile
+ *
+ * @typedef {import('@synonymdev/web-relay/types/lib/client/index')} WebRelayClient
  */
