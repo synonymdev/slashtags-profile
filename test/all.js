@@ -1,8 +1,5 @@
 const test = require('brittle')
-/** @type {typeof import('@synonymdev/web-relay/types/lib/client/index')} */
-// @ts-ignore
-const Client = require('@synonymdev/web-relay/client')
-const Relay = require('@synonymdev/web-relay')
+const { Client, Relay } = require('@synonymdev/web-relay')
 const os = require('os')
 
 const SlashtagsProfile = require('../index.js')
@@ -42,7 +39,7 @@ test('Create, Update, Read, Delete', async (t) => {
 
   // First read returns from local storage, while fetching from relay.
   reader.get(url)
-  await sleep(100)
+  await sleep(500)
 
   const afterDeleteReader = await reader.get(url)
   t.is(afterDeleteReader, null, 'deleted profile at reader')
@@ -189,40 +186,43 @@ test('watch profile updated', async (t) => {
   const writerClient = new Client({ storage: tmpdir(), relay: address })
   const writer = new SlashtagsProfile(writerClient)
 
-  const created = { name: 'foo' }
-  await writer.put(created)
-
-  const url = await writer.createURL()
-
   const readerClient = new Client({ storage: tmpdir() })
   const reader = new SlashtagsProfile(readerClient)
 
-  const tw = t.test('watcher')
-  tw.plan(2)
+  const url = await writer.createURL()
 
-  let calls = 0
+  const created = { name: 'foo' }
+  const updated = { name: 'bar' }
 
-  const cleanup = reader.subscribe(
-    url,
-    (profile) => {
-      if (calls++ === 0) {
-        // First call
-        tw.alike(profile, created)
-      } else {
-        // Second call
-        tw.alike(profile, updated)
-      }
+  const te = t.test('eventsource')
+  te.plan(3)
+
+  const unsbuscribe = writer.subscribe(url, (profile) => {
+    te.alike(profile, created, 'subscribe local')
+  })
+
+  let count = 0
+  reader.subscribe(url, (profile) => {
+    if (count++ === 0) {
+      te.alike(profile, created)
+    } else {
+      te.alike(profile, updated)
     }
-  )
+  })
+
+  await writer.put(created)
 
   await sleep(100)
 
-  const updated = { name: 'bar' }
+  // Subscribe closes eventsource
+  unsbuscribe()
+
   await writer.put(updated)
 
-  await tw
+  await te
 
-  cleanup()
+  // Closing the client closes all subscriptions
+  await reader.close()
 
   relay.close()
 })
@@ -234,42 +234,47 @@ test('watch profile deleted', async (t) => {
   const writerClient = new Client({ storage: tmpdir(), relay: address })
   const writer = new SlashtagsProfile(writerClient)
 
-  const created = { name: 'foo' }
-  await writer.put(created)
-
-  const url = await writer.createURL()
-
   const readerClient = new Client({ storage: tmpdir() })
   const reader = new SlashtagsProfile(readerClient)
 
-  const tw = t.test('watcher')
-  tw.plan(2)
+  const url = await writer.createURL()
+
+  const created = { name: 'foo' }
+
+  const te = t.test('eventsource')
+  te.plan(3)
+
+  const unsbuscribe = writer.subscribe(url, (profile) => {
+    te.alike(profile, created, 'subscribe local')
+  })
 
   let count = 0
-
-  const cleanup = reader.subscribe(
-    url,
-    (profile) => {
-      if (count++ === 0) {
-        tw.alike(profile, created)
-      } else {
-        tw.alike(profile, null)
-      }
+  reader.subscribe(url, (profile) => {
+    if (count++ === 0) {
+      te.alike(profile, created)
+    } else {
+      te.alike(profile, null)
     }
-  )
+  })
+
+  await writer.put(created)
 
   await sleep(100)
 
+  // Subscribe closes eventsource
+  unsbuscribe()
+
   await writer.del()
 
-  await tw
+  await te
 
-  cleanup()
+  // Closing the client closes all subscriptions
+  await reader.close()
 
   relay.close()
 })
 
-test.skip('watch local profile updated', async (t) => {
+test.skip('watch local profile updated (without relay)', async (t) => {
   const writerClient = new Client({ storage: tmpdir() })
   const writer = new SlashtagsProfile(writerClient)
 

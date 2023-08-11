@@ -17,7 +17,6 @@
     "!**/*.tsbuildinfo"
   ],
   "devDependencies": {
-    "@synonymdev/web-relay": "github:slashtags/web-relay",
     "@types/node": "^20.4.8",
     "brittle": "^3.2.1",
     "standard": "^17.0.0",
@@ -25,6 +24,7 @@
   },
   "dependencies": {
     "@synonymdev/slashtags-url": "^1.0.0-alpha.3",
+    "@synonymdev/web-relay": "github:slashtags/web-relay#dev",
     "ajv": "^8.12.0",
     "b4a": "^1.6.3"
   }
