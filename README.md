@@ -13,59 +13,60 @@ npm install @synonymdev/slashtags-profile
 Initialize
 
 ```js
+const { Client } = require('@synonymdev/web-relay')
 const SlashtagsProfile = require('@synonymdev/slashtags-profile')
 
-const writer = new SlashtagsProfile()
-await writer.ready()
+const client = new Client({ storage: "path/to/storage", relay: address })
+const writer = new SlashtagsProfile(client)
 
 const profile = { name: 'foo' }
 
-await writer.create(profile)
+await writer.put(profile)
+
+const url = await writer.createURL()
 ```
 
 Resolve profile as a reader 
 
 ```js
+const { Client } = require('@synonymdev/web-relay')
 const SlashtagsProfile = require('@synonymdev/slashtags-profile')
 
-const reader = new SlashtagsProfile()
+const client = new Client({ storage: "path/to/storage "})
+const reader = new SlashtagsProfile(client)
 
-const resolved = await reader.readRemote(writer.url)
+const resolved = await reader.get(url) // URL from writer side
 // {name: 'foo'}
 ```
 
 ## API
 
-#### `new SlashtagsProfile([coreData])`
+#### `const profile = new SlashtagsProfile(WebRelayClient)`
 
 Create a new SlashtagsProfile instance.
 
-- `coreData` Optional [slashtags-core-data](https://www.npmjs.com/package/@synonymdev/slashtags-core-data) module, if not passed, it will create one with a random KeyPair.
+- `WebRelayClient` [slashtags-web-relay](https://github.com/slashtags/web-relay) instance.
 
-#### `await profile.ready()`
+#### `const url = await profile.createURL()`
 
-Await for the underlying resources to be ready, if the profile is writable, it will await for the announcement on the swarm to be done.
+Creates a sharable `url` to allow remote readers to read this profile.
 
 #### `await profile.close()`
 
-Closes Hypercore sessions created for this instance.
+Closes the underlying web relay client.
 
-#### `await profile.create(data)`
+#### `await profile.put(profile)`
 
-Same as `await profile.update(data)`
+Puts a new profile value. `profile` param should be an object following its type definition.
 
-#### `await profile.update(data)`
-
-Puts a new profile value. `data` param should be an object following its type definition.
-
-#### `await profile.delete()`
+#### `await profile.del()`
 
 Deletes the value from the underlying hyperdrive.
 
-####  `await profile.read()`
+####  `await profile.get([url])`
 
-Read the profile from local storage. It will internally await for finding peers if it has any. Otherwise, it will eagerly get update from connected peers. 
+Read a local profile if no `url` is passed, or a remote one if `url` is passed.
 
 #### `await profile.subscribe(url, onupdate)`
 
-Watch updates to a local or a remote file, and call `onupdate(curr)` function with current profile.
+Watch updates to a remote file, and call `onupdate(profile)` function with current profile.
