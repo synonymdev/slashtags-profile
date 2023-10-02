@@ -70,34 +70,37 @@ class SlashtagsProfile {
    * Create or update a Profile file.
    *
    * @param {Profile} profile
+   * @param {Parameters<import('@synonymdev/web-relay').Client['put']>[2]} [options]
    *
    * @returns {Promise<void>}
    */
-  put (profile) {
+  put (profile, options) {
     validate(profile)
-    return this._client.put(PROFILE_PATH, encode(profile))
+    return this._client.put(PROFILE_PATH, encode(profile), options)
   }
 
   /**
    * Delete Profile file.
+   * @param {Parameters<import('@synonymdev/web-relay').Client['del']>[1]} [options]
    *
    * @returns {Promise<void>}
    */
-  del () {
-    return this._client.del(PROFILE_PATH)
+  del (options) {
+    return this._client.del(PROFILE_PATH, options)
   }
 
   /**
    * Return local Profile file
    *
    * @param {string} [url]
+   * @param {Parameters<import('@synonymdev/web-relay').Client['get']>[1]} [options]
    *
    * @returns {Promise<Profile | null>}
    */
-  async get (url) {
+  async get (url, options) {
     const buf = url
-      ? await this._client.get(url)
-      : await this._client.get(PROFILE_PATH)
+      ? await this._client.get(url, options)
+      : await this._client.get(PROFILE_PATH, options)
 
     return buf && decode(buf)
   }
