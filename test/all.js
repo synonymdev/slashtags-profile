@@ -32,7 +32,7 @@ test('Create, Update, Read, Delete', async (t) => {
 
   t.alike(resolved, updated, 'read profile data from swarm successfully')
 
-  await writer.del()
+  await writer.del({ awaitRelaySync: true })
 
   const afterDelete = await writer.get()
   t.is(afterDelete, null, 'deleted profile locally')
